@@ -19,10 +19,11 @@ def load_preprocess():
 
 
 
-#(source_int_text, target_int_text), (source_vocab_to_int, target_vocab_to_int), _ = load_preprocess()
+(source_int_text, target_int_text), (source_vocab_to_int, target_vocab_to_int), _ = load_preprocess()
 
-
-
+exit()
+GO_ID = 10000
+END_ID = -10000
 # Check TensorFlow Version
 assert LooseVersion(tf.__version__) >= LooseVersion('1.1'), 'Please use TensorFlow version 1.1 or newer'
 print('TensorFlow Version: {}'.format(tf.__version__))
@@ -35,9 +36,9 @@ else:
 
 
 def enc_dec_model_inputs():
-    #changes (to do): convert to floar64
-    inputs = tf.placeholder(tf.int32, [None, None], name='input')
-    targets = tf.placeholder(tf.int32, [None, None], name='targets') 
+    #changes (done): convert to floar64
+    inputs = tf.placeholder(tf.float32, [None, None], name='input')
+    targets = tf.placeholder(tf.float32, [None, None], name='targets') 
     
     target_sequence_length = tf.placeholder(tf.int32, [None], name='target_sequence_length')
     max_target_len = tf.reduce_max(target_sequence_length)    
@@ -59,9 +60,9 @@ def process_decoder_input(target_data, target_vocab_to_int, batch_size):
     :return: Preprocessed target data
     """
     # get '<GO>' id
-    #changes (to do): test: instead of using vocab, just use a specified float number
-    go_id = target_vocab_to_int['<GO>']
-    
+    #changes (done): test: instead of using vocab, just use a specified float number
+    #go_id = target_vocab_to_int['<GO>']
+    go_id = GO_ID
     after_slice = tf.strided_slice(target_data, [0, 0], [batch_size, -1], [1, 1])
     after_concat = tf.concat( [tf.fill([batch_size, 1], go_id), after_slice], 1)
     
@@ -73,14 +74,15 @@ def encoding_layer(rnn_inputs, rnn_size, num_layers, keep_prob,
     """
     :return: tuple (RNN output, RNN state)
     """
-    #changes (to do): remove embedding layer
-    embed = tf.contrib.layers.embed_sequence(rnn_inputs, 
-                                             vocab_size=source_vocab_size, 
-                                             embed_dim=encoding_embedding_size)
+    #changes (done): remove embedding layer
+    #embed = tf.contrib.layers.embed_sequence(rnn_inputs, 
+                                             #vocab_size=source_vocab_size, 
+                                             #embed_dim=encoding_embedding_size)
+    embed = rnn_inputs
     #changes (to do): investigate rnn size and number of layers
     stacked_cells = tf.contrib.rnn.MultiRNNCell(       [   tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(rnn_size), keep_prob) for _ in range(num_layers) ]      )
     
-    #changes (to do): replace embeding with original inputs
+    #changes (done): replace embeding with original inputs
     outputs, state = tf.nn.dynamic_rnn(stacked_cells, 
                                        embed, 
                                        dtype=tf.float32)
@@ -97,6 +99,7 @@ def decoding_layer_train(encoder_state, dec_cell, dec_embed_input,
                                              output_keep_prob=keep_prob)
     
     # for only input layer
+    #changes (done) dec_embed_input has been changed before function call
     helper = tf.contrib.seq2seq.TrainingHelper(dec_embed_input, 
                                                target_sequence_length)
     
@@ -144,9 +147,11 @@ def decoding_layer(dec_input, encoder_state,
     Create decoding layer
     :return: Tuple of (Training BasicDecoderOutput, Inference BasicDecoderOutput)
     """
+    #changes (to do): remove embedding variables and layers
     target_vocab_size = len(target_vocab_to_int)
-    dec_embeddings = tf.Variable(tf.random_uniform([target_vocab_size, decoding_embedding_size]))
-    dec_embed_input = tf.nn.embedding_lookup(dec_embeddings, dec_input)
+    #dec_embeddings = tf.Variable(tf.random_uniform([target_vocab_size, decoding_embedding_size]))
+    #dec_embed_input = tf.nn.embedding_lookup(dec_embeddings, dec_input)
+    dec_embed_input = dec_input
     
     cells = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.LSTMCell(rnn_size) for _ in range(num_layers)])
     
@@ -159,13 +164,13 @@ def decoding_layer(dec_input, encoder_state,
                                             max_target_sequence_length, 
                                             output_layer, 
                                             keep_prob)
-
+    #changes: GO_ID and END_ID
     with tf.variable_scope("decode", reuse=True):
         infer_output = decoding_layer_infer(encoder_state, 
                                             cells, 
                                             dec_embeddings, 
-                                            target_vocab_to_int['<GO>'], 
-                                            target_vocab_to_int['<EOS>'], 
+                                            GO_ID, 
+                                            END_ID, 
                                             max_target_sequence_length, 
                                             target_vocab_size, 
                                             output_layer,
@@ -244,7 +249,7 @@ with train_graph.as_default():
                                                    rnn_size,
                                                    num_layers,
                                                    target_vocab_to_int)
-    
+    #changes: (to do) to be reviewed
     training_logits = tf.identity(train_logits.rnn_output, name='logits')
     inference_logits = tf.identity(inference_logits.sample_id, name='predictions')
 
@@ -267,13 +272,13 @@ with train_graph.as_default():
         capped_gradients = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in gradients if grad is not None]
         train_op = optimizer.apply_gradients(capped_gradients)
 
-
+#changes: (to do) may need to be chenged
 def pad_sentence_batch(sentence_batch, pad_int):
     """Pad sentences with <PAD> so that each sentence of a batch has the same length"""
     max_sentence = max([len(sentence) for sentence in sentence_batch])
     return [sentence + [pad_int] * (max_sentence - len(sentence)) for sentence in sentence_batch]
 
-
+#changes: (to do) may need to be chenged
 def get_batches(sources, targets, batch_size, source_pad_int, target_pad_int):
     """Batch targets, sources, and the lengths of their sentences together"""
     for batch_i in range(0, len(sources)//batch_size):
