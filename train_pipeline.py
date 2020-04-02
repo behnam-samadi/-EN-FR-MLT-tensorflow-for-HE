@@ -15,15 +15,34 @@ def load_preprocess():
     with open('preprocess.p', mode='rb') as in_file:
         return pickle.load(in_file)
 
-
+GO_ID = float(10000)
+END_ID = float(-10000)
 
 
 
 (source_int_text, target_int_text), (source_vocab_to_int, target_vocab_to_int), _ = load_preprocess()
+source_int_text_raw = np.load("make_dataset/input_histograms.npy").tolist()
+target_int_text_raw = np.load("make_dataset/output_histograms.npy").tolist()
 
-exit()
-GO_ID = 10000
-END_ID = -10000
+
+source_int_text = []
+target_int_text = []
+for i in range(len(source_int_text_raw)):
+    print(i)
+    temp_source = source_int_text_raw[i]
+    
+    temp_source.append(END_ID)
+    
+    temp_target = target_int_text_raw[i]
+    temp_target = temp_target.append(END_ID)
+    source_int_text.append(temp_source)
+    target_int_text.append(temp_target)
+
+
+
+
+
+
 # Check TensorFlow Version
 assert LooseVersion(tf.__version__) >= LooseVersion('1.1'), 'Please use TensorFlow version 1.1 or newer'
 print('TensorFlow Version: {}'.format(tf.__version__))
@@ -79,6 +98,8 @@ def encoding_layer(rnn_inputs, rnn_size, num_layers, keep_prob,
                                              #vocab_size=source_vocab_size, 
                                              #embed_dim=encoding_embedding_size)
     embed = rnn_inputs
+    embed = tf.expand_dims(embed, axis = 2)
+
     #changes (to do): investigate rnn size and number of layers
     stacked_cells = tf.contrib.rnn.MultiRNNCell(       [   tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(rnn_size), keep_prob) for _ in range(num_layers) ]      )
     
@@ -102,12 +123,14 @@ def decoding_layer_train(encoder_state, dec_cell, dec_embed_input,
     #changes (done) dec_embed_input has been changed before function call
     helper = tf.contrib.seq2seq.TrainingHelper(dec_embed_input, 
                                                target_sequence_length)
-    
+    #change (test) remove output_layer
     decoder = tf.contrib.seq2seq.BasicDecoder(dec_cell, 
                                               helper, 
-                                              encoder_state, 
+                                              encoder_state,
                                               output_layer)
-
+    #print("decoder", decoder)
+    #print("///////////////\n///////////////\n//////////////\n/////////////\n///////////\n////////")
+    #exit()
     # unrolling the decoder layer
     outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(decoder, 
                                                       impute_finished=True, 
@@ -149,9 +172,17 @@ def decoding_layer(dec_input, encoder_state,
     """
     #changes (to do): remove embedding variables and layers
     target_vocab_size = len(target_vocab_to_int)
+    #taghyire khas
+    target_vocab_size = 1
+
+
     #dec_embeddings = tf.Variable(tf.random_uniform([target_vocab_size, decoding_embedding_size]))
     #dec_embed_input = tf.nn.embedding_lookup(dec_embeddings, dec_input)
+    
     dec_embed_input = dec_input
+    
+    dec_input = tf.expand_dims(dec_input, axis = 2)
+    print("dec_input", dec_input, "/////////////////////\n///////////////\n////////////////\n")
     
     cells = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.LSTMCell(rnn_size) for _ in range(num_layers)])
     
@@ -221,15 +252,17 @@ batch_size = 128
 rnn_size = 128
 num_layers = 3
 
-encoding_embedding_size = 200
-decoding_embedding_size = 200
+encoding_embedding_size = 1
+decoding_embedding_size = 1
 
 learning_rate = 0.001
 keep_probability = 0.5
 
 save_path = 'checkpoints/dev'
-(source_int_text, target_int_text), (source_vocab_to_int, target_vocab_to_int), _ = load_preprocess()
+#(source_int_text, target_int_text), (source_vocab_to_int, target_vocab_to_int), _ = load_preprocess()
 max_target_sentence_length = max([len(sentence) for sentence in source_int_text])
+
+
 
 train_graph = tf.Graph()
 with train_graph.as_default():
@@ -250,8 +283,11 @@ with train_graph.as_default():
                                                    num_layers,
                                                    target_vocab_to_int)
     #changes: (to do) to be reviewed
+
     training_logits = tf.identity(train_logits.rnn_output, name='logits')
     inference_logits = tf.identity(inference_logits.sample_id, name='predictions')
+    
+    
 
     # https://www.tensorflow.org/api_docs/python/tf/sequence_mask
     # - Returns a mask tensor representing the first N positions of each cell.
