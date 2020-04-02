@@ -180,8 +180,7 @@ def decoding_layer(dec_input, encoder_state,
     #dec_embed_input = tf.nn.embedding_lookup(dec_embeddings, dec_input)
     
     dec_embed_input = dec_input
-    
-    dec_input = tf.expand_dims(dec_input, axis = 2)
+    dec_embed_input = tf.expand_dims(dec_embed_input, axis = 2)
     print("dec_input", dec_input, "/////////////////////\n///////////////\n////////////////\n")
     
     cells = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.LSTMCell(rnn_size) for _ in range(num_layers)])
