@@ -15,6 +15,7 @@ with open("list_of_selected_files.txt", 'w') as f:
         f.writelines(item + "\n")
 hist_dataset = np.ndarray((len(selected_files), 256))
 hist_dataset_equalized = np.ndarray((len(selected_files), 256))
+
 for i in range(len(selected_files)):
     item = selected_files[i]
     img = cv.imread(dataset_adress + "/"  + item)
@@ -28,7 +29,7 @@ for i in range(len(selected_files)):
     hist_dataset[i, :] = hist
     print(float(i)/len(selected_files))
 
-
+raise(False)
 np.save("input_histograms.npy", hist_dataset)
 np.save("output_histograms.npy", hist_dataset_equalized)
 
